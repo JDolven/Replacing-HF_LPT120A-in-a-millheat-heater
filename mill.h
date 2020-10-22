@@ -2,55 +2,44 @@
 
 bool newData;
 char receivedChars[15];
-int numChars = 12;
-char settpunkt, temperatur;
-char power[10];
-char aktiv[10];
-char pre_aktiv;
-char pre_temperatur;
-char pre_settpunkt;
+
 
 // mill kommandoer
 char settPower[] = {0x00, 0x10, 0x06, 0x00, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Powertoggle er pos 5
 char settTemp[] = {0x00, 0x10, 0x08, 0x00, 0x43, 0x04, 0x0A, 0x01, 0x12, 0x02}; //, 0x20, 0x03, 0x0A}; // temperatursetting er pos 8
 
 class MyCustomClimate : public Component, public Climate {
- public:
+public:
   void setup() override {
     // This will be called by App.setup()
      // Serial.begin(9600);
   }
 
-      void loop() override {
+  void loop() override {
       recvWithStartEndMarkers();
-
+      
       if (newData == true) {
         newData = false;     
       if (receivedChars[4] == 0xC9 ) { // Filtrer ut unødig informasjon
 
           if (receivedChars[6] != 0 ) {
-            settpunkt = receivedChars[6];
-           // Heater_Act_PV.publish(settpunkt);
+          this->target_temperature= receivedChars[6];
           }
 
           if (receivedChars[7] != 0 ) {
-            temperatur = receivedChars[7];
-           // Heater_pv.publish(temperatur);
-        
+            this->current_temperature = receivedChars[7];
           }
 
           if (receivedChars[11] == 0x00 ) {
-            sprintf(aktiv, "off");
-            //Heater_status.publish(aktiv);
+          this->action= climate::CLIMATE_ACTION_IDLE;
+          
           } else if (receivedChars[11] == 0x01 ) {
-            sprintf(aktiv, "heat");
-          //  Heater_status.publish(aktiv);
+          this->action= climate::CLIMATE_ACTION_HEATING ;
           }
-
-
+          this->publish_state();
     }
   }
- }
+}
 
   void control(const ClimateCall &call) override {
     if (call.get_mode().has_value()) {
@@ -59,26 +48,40 @@ class MyCustomClimate : public Component, public Climate {
                 case CLIMATE_MODE_OFF:
                   sendCmd(settPower, sizeof(settPower), 0x00);
                     break;
-                case CLIMATE_MODE_AUTO:
+                case CLIMATE_MODE_HEAT:
                   sendCmd(settPower, sizeof(settPower), 0x01);
                     break;
         }
+
+      ClimateMode mode = *call.get_mode();
+
       this->mode = mode;
       this->publish_state();
-    }
+        }
+
     if (call.get_target_temperature().has_value()) {
       // User requested target temperature change
       int temp = *call.get_target_temperature();
       sendCmd(settTemp, sizeof(settTemp), temp);
       // ...
+      this->target_temperature = temp;
+      this->publish_state();
+
     }
-  }
+    }
+
+  
 
   ClimateTraits traits() override {
     // The capabilities of the climate device
     auto traits = climate::ClimateTraits();
     traits.set_supports_current_temperature(true);
-    traits.set_supports_auto_mode(true);
+    traits.set_supports_heat_mode(true);
+    traits.set_supports_auto_mode(false);
+    traits.set_supports_cool_mode(false);
+    traits.set_supports_two_point_target_temperature(false);
+    traits.set_visual_min_temperature(5);
+    traits.set_visual_max_temperature(30);
     return traits;
   }
 
