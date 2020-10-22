@@ -43,3 +43,7 @@ climate:
 
   climates:
     - name: "My Custom Climate"
+      visual:
+         min_temperature: 5 °C
+         max_temperature: 30 °C
+         temperature_step: 1 °C
