@@ -1,0 +1,45 @@
+esphome:
+  name: varmeovn
+  platform: ESP8266
+  board: d1_mini
+  includes:
+    - mill.h
+
+wifi:
+  ssid: ""
+  password: ""
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Varmeovn Fallback Hotspot"
+    password: ""
+
+captive_portal:
+
+# Enable logging
+logger:
+  level: VERBOSE
+  baud_rate: 0
+# Enable Home Assistant API
+api:
+  password: "!"
+
+ota:
+  password: "!"
+
+uart:
+  id: uart_bus
+  tx_pin: GPIO1
+  rx_pin: GPIO3
+  baud_rate: 9600
+
+climate:
+- platform: custom
+  lambda: |-
+    auto my_custom_climate = new MyCustomClimate();
+    App.register_component(my_custom_climate);
+    return {my_custom_climate};
+
+
+  climates:
+    - name: "My Custom Climate"
