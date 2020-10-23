@@ -11,9 +11,7 @@ char settTemp[] = {0x00, 0x10, 0x08, 0x00, 0x43, 0x04, 0x0A, 0x01, 0x12, 0x02}; 
 class MyCustomClimate : public Component, public Climate {
 public:
   void setup() override {
-    // This will be called by App.setup()
-     // Serial.begin(9600);
-  this->current_temperature = 50;
+
   }
 
   void loop() override {
