@@ -13,6 +13,7 @@ public:
   void setup() override {
     // This will be called by App.setup()
      // Serial.begin(9600);
+  this->current_temperature = 50;
   }
 
   void loop() override {
@@ -69,7 +70,6 @@ public:
 
     }
     }
-
   
 
   ClimateTraits traits() override {
@@ -77,6 +77,7 @@ public:
     auto traits = climate::ClimateTraits();
     traits.set_supports_current_temperature(true);
     traits.set_supports_heat_mode(true);
+    traits.set_supports_action(true);
     traits.set_supports_auto_mode(false);
     traits.set_supports_cool_mode(false);
     traits.set_supports_two_point_target_temperature(false);
@@ -146,7 +147,4 @@ void sendCmd(char* arrayen, int len, int kommando) {
   Serial.write((byte)crc); // Kontrollbyte
   Serial.write((byte)0x5B); // Stoppbyte
 }
-
-
-
 };
