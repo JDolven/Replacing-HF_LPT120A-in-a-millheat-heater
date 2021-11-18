@@ -6,13 +6,13 @@ esphome:
     - mill.h
 
 wifi:
-  ssid: ""
-  password: ""
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Varmeovn Fallback Hotspot"
-    password: ""
+    password: "Set your own PWD"
 
 captive_portal:
 
@@ -22,10 +22,10 @@ logger:
   baud_rate: 0
 # Enable Home Assistant API
 api:
-  password: "!"
+  password: !secret HA_API
 
 ota:
-  password: "!"
+  password: !secret HA_API
 
 uart:
   id: uart_bus
@@ -35,6 +35,7 @@ uart:
 
 climate:
 - platform: custom
+
   lambda: |-
     auto my_custom_climate = new MyCustomClimate();
     App.register_component(my_custom_climate);
@@ -42,7 +43,7 @@ climate:
 
 
   climates:
-    - name: "My Custom Climate"
+    - name: "Soverom"
       visual:
          min_temperature: 5 °C
          max_temperature: 30 °C
