@@ -11,16 +11,18 @@ char settTemp[] = {0x00, 0x10, 0x08, 0x00, 0x43, 0x04, 0x0A, 0x01, 0x12, 0x02}; 
 class MyCustomClimate : public Component, public Climate {
 public:
   void setup() override {
-
+    // This will be called by App.setup()
+     // Serial.begin(9600);
   }
 
   void loop() override {
       recvWithStartEndMarkers();
-      
-      if (newData == true) {
-        newData = false;     
-      if (receivedChars[4] == 0xC9 ) { // Filtrer ut unødig informasjon
 
+      if (newData == true) {
+        newData = false;    
+
+      if (receivedChars[4] == 0xC9 ) { // Filtrer ut unødig informasjon
+        
           if (receivedChars[6] != 0 ) {
           this->target_temperature= receivedChars[6];
           }
@@ -28,12 +30,18 @@ public:
           if (receivedChars[7] != 0 ) {
             this->current_temperature = receivedChars[7];
           }
+          if (receivedChars[9] == 0x00 ) {
+          this->mode= climate::CLIMATE_MODE_OFF;
+          
+          } else if (receivedChars[9] == 0x01 ) {
+          this->mode= climate::CLIMATE_MODE_HEAT;
 
+          }
           if (receivedChars[11] == 0x00 ) {
           this->action= climate::CLIMATE_ACTION_IDLE;
           
           } else if (receivedChars[11] == 0x01 ) {
-          this->action= climate::CLIMATE_ACTION_HEATING ;
+          this->action= climate::CLIMATE_ACTION_HEATING;
           }
           this->publish_state();
     }
@@ -74,11 +82,8 @@ public:
     // The capabilities of the climate device
     auto traits = climate::ClimateTraits();
     traits.set_supports_current_temperature(true);
-    traits.set_supports_heat_mode(true);
-    traits.set_supports_action(true);
-    traits.set_supports_auto_mode(false);
-    traits.set_supports_cool_mode(false);
-    traits.set_supports_two_point_target_temperature(false);
+    traits.set_supported_modes({climate::CLIMATE_MODE_OFF,climate::CLIMATE_MODE_HEAT});
+    traits.set_supports_current_temperature(true);
     traits.set_visual_min_temperature(5);
     traits.set_visual_max_temperature(30);
     return traits;
@@ -96,13 +101,10 @@ void recvWithStartEndMarkers() {
     rc = Serial.read();
     if (recvInProgress == true) {
       if ((rc != endMarker) && (rc != lineend)) {
-        // Heater_debug.publish("innhold");
         receivedChars[ndx] = (char) rc;
-        // Heater_debug.publish(receivedChars[ndx]);
         ndx++;
       }
       else {
-        // Heater_debug.publish("Avslutting");
         recvInProgress = false;
         ndx = 0;
         newData = true;
@@ -110,7 +112,6 @@ void recvWithStartEndMarkers() {
     }
 
     else if (rc == startMarker) {
-      // Heater_debug.publish("Start mark");
       recvInProgress = true;
     }
   }
