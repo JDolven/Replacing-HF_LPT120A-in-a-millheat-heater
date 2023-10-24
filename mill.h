@@ -22,6 +22,10 @@ public:
         newData = false;    
 
       if (receivedChars[4] == 0xC9 ) { // Filtrer ut unødig informasjon
+
+          //for (int element : receivedChars) { // for each element in the array
+          //ESP_LOGI("Recivedbytes", "%x", receivedChars[element ]);
+          //}
         
           if (receivedChars[6] != 0 ) {
           this->target_temperature= receivedChars[6];
