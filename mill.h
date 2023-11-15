@@ -62,6 +62,8 @@ public:
                 case CLIMATE_MODE_HEAT:
                   sendCmd(settPower, sizeof(settPower), 0x01);
                     break;
+                default:
+                    break;
         }
 
       ClimateMode mode = *call.get_mode();
