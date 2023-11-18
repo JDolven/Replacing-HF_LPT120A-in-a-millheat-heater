@@ -138,7 +138,7 @@ unsigned char checksum(char *buf, int len) {
 /* Seriedata ut til mill mikrokontroller ---*/
 void sendCmd(char* arrayen, int len, int kommando) {
 
-  if (arrayen[4] == 0x43) { // Temperatur (OLD  0x43)
+  if (arrayen[4] == 0x46) { // Temperatur (OLD  0x43)
     arrayen[7] = kommando;
   }
   if (arrayen[4] == 0x47) { // Power av/på
