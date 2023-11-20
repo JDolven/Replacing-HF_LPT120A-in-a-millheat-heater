@@ -37,17 +37,15 @@ public:
           }
           if (receivedChars[9] == 0x00 ) {
           this->mode= climate::CLIMATE_MODE_OFF;
-          
-          } else if (receivedChars[9] == 0x01 ) {
+          } else {
           this->mode= climate::CLIMATE_MODE_HEAT;
 
           }
-          if (receivedChars[11] == 0x00 ) {
-          this->action= climate::CLIMATE_ACTION_IDLE;
-          
-          } else if (receivedChars[11] == 0x01 ) {
-          this->action= climate::CLIMATE_ACTION_HEATING;
-          }
+          if (receivedChars[11] == 0x01) {
+            this->action = climate::CLIMATE_ACTION_HEATING;
+          } else {
+            this->action = climate::CLIMATE_ACTION_IDLE;
+        }
           this->publish_state();
     }
   }
@@ -89,6 +87,7 @@ public:
     // The capabilities of the climate device
     auto traits = climate::ClimateTraits();
     traits.set_supports_current_temperature(true);
+    traits.set_supports_action(true);
     traits.set_supported_modes({climate::CLIMATE_MODE_OFF,climate::CLIMATE_MODE_HEAT});
     traits.set_supports_current_temperature(true);
     traits.set_visual_min_temperature(5);
