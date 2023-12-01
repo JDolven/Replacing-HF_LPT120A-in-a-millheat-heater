@@ -1,5 +1,10 @@
+#Remember to change the value for consupmtion (watt) on line 69 to the value of your heater. 
+substitutions:
+  devicename: "heater"  #Lower case name
+  upper_devicename: Heater
+
 esphome:
-  name: varmeovn
+  name: "${devicename}"
   platform: ESP8266
   board: d1_mini
   includes:
@@ -11,8 +16,8 @@ wifi:
 
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
-    ssid: "Varmeovn Fallback Hotspot"
-    password: "Set your own PWD"
+    ssid: "${devicename} Fallback Hotspot"
+    password: "f3hQm4pXDUHu"
 
 captive_portal:
 
@@ -24,7 +29,7 @@ logger:
 api:
   password: !secret HA_API
   encryption:
-    key: " "  //KEY randomly-generated base64 key
+    key: "GwD+jJnETn7SeVGAIlWnjJRWTaqIJhfIMjdGwL8u3aI="
 ota:
   password: !secret HA_API
 
@@ -41,35 +46,33 @@ climate:
     App.register_component(my_custom_climate);
     return {my_custom_climate};
   
-
   climates:
-    - name: "Soverom"
+    - name: "${devicename} Climate"
       id: heater
       visual:
          min_temperature: 5 °C
          max_temperature: 30 °C
          temperature_step: 1 °C
          
-
 sensor:
-  - platform: total_daily_energy // Resetter
-    name: "Total Daily Energy"
-    power_id: my_power
+  - platform: total_daily_energy
+    name: ${devicename} Total Daily Energy
+    power_id: ${devicename}
     device_class: "energy"
     state_class: "total_increasing"
     
   - platform: template
-    name: "heater Power"
-    id: my_power
+    name: "${devicename} Power"
+    id: ${devicename}
     lambda: |-
       if (id(heater).action ==  CLIMATE_ACTION_HEATING) {
-        return 900.0;   // ovnes effekt i Watt
+        return 900.0;
       } else {
         return 0.0;
       }
     filters:
-      - multiply: 0.001
-    unit_of_measurement: kW
+      - multiply: 1
+    unit_of_measurement: W
     update_interval: 60s
     
 # Enable time component to reset energy at midnight
