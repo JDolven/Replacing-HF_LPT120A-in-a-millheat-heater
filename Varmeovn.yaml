@@ -31,7 +31,8 @@ api:
   encryption:
     key: "GwD+jJnETn7SeVGAIlWnjJRWTaqIJhfIMjdGwL8u3aI="
 ota:
-  password: !secret HA_API
+  - platform: esphome
+    password: !secret HA_API
 
 uart:
   id: uart_bus
