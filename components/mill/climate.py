@@ -1,11 +1,14 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import climate, uart
+from esphome.components import climate, uart, network
 
 DEPENDENCIES = ["uart"]
 
 mill_ns = cg.esphome_ns.namespace("mill")
 MillClimate = mill_ns.class_("MillClimate", climate.Climate, cg.Component)
+
+CONF_ID = "id"
+CONF_uart_id = "uart_id"
 
 CONFIG_SCHEMA = climate.CLIMATE_SCHEMA.extend({
     cv.GenerateID(): cv.declare_id(MillClimate),
