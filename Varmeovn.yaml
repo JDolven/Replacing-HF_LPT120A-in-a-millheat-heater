@@ -1,21 +1,19 @@
-#Remember to change the value for consupmtion (watt) on line XX to the value of your heater. 
 substitutions:
-  devicename: "heater"  #Lower case name
-  upper_devicename: Heater
+  devicename: "navn"
+  upper_devicename: "NAVN"
 
 esphome:
   name: $devicename
   
 esp8266:
   board: d1_mini
-
+  
 external_components:
   - source:
-      type: git
-      url: https://github.com/JDolven/Replacing-HF_LPT120A-in-a-millheat-heater/tree/Test
-      ref: dev
-    components: [mill]
-
+      type: local
+      path: components
+    components:
+      - mill
 
 wifi:
   ssid: !secret wifi_ssid
@@ -40,6 +38,16 @@ api:
 ota:
   - platform: esphome
     password: !secret HA_API
+    
+climate:
+  - platform: mill
+    name: ${devicename} Heater
+    id: "heater"
+    uart_id: uart_bus
+    visual:
+      min_temperature: 5 °C
+      max_temperature: 30 °C
+      temperature_step: 1 °C
 
 uart:
   id: uart_bus
@@ -47,43 +55,25 @@ uart:
   rx_pin: GPIO3
   baud_rate: 9600
 
-climate:
-- platform: custom
-  lambda: |-
-    auto my_custom_climate = new MyCustomClimate();
-    App.register_component(my_custom_climate);
-    return {my_custom_climate};
-  
-  climates:
-    - name: "${devicename} Climate"
-      id: heater
-      visual:
-         min_temperature: 5 °C
-         max_temperature: 30 °C
-         temperature_step: 1 °C
-         
 sensor:
   - platform: total_daily_energy
-    name: ${devicename} Total Daily Energy
-    power_id: ${devicename}
+    name: ${devicename} Daglig forbruk
+    power_id: heater_power
     device_class: "energy"
     state_class: "total_increasing"
-    
+
   - platform: template
-    name: "${devicename} Power"
-    id: ${devicename}
+    name: ${devicename} effekt
+    id: heater_power
     lambda: |-
-      if (id(heater).action ==  CLIMATE_ACTION_HEATING) {
+      if (id(heater).action == CLIMATE_ACTION_HEATING) {
         return 900.0;
       } else {
         return 0.0;
       }
-    filters:
-      - multiply: 1
     unit_of_measurement: W
     update_interval: 60s
-    
-# Enable time component to reset energy at midnight
+
 time:
   - platform: sntp
     id: my_time
