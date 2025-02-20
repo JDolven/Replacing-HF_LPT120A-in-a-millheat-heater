@@ -15,6 +15,9 @@ public:
     void loop() override;
     climate::ClimateTraits traits() override;
     void control(const climate::ClimateCall &call) override;
+    climate::ClimateAction get_action() const override {
+        return this->action;
+    }
 
 protected:
     uart::UARTComponent* uart_{nullptr};
