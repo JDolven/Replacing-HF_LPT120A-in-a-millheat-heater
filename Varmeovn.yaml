@@ -1,14 +1,20 @@
-#Remember to change the value for consupmtion (watt) on line 69 to the value of your heater. 
+#Remember to change the value for consupmtion (watt) on line XX to the value of your heater. 
 substitutions:
   devicename: "heater"  #Lower case name
   upper_devicename: Heater
 
 esphome:
-  name: "${devicename}"
-  platform: ESP8266
+  name: $devicename
+  
+esp8266:
   board: d1_mini
-  includes:
-    - mill.h
+  
+external_components:
+  - source:
+      type: local
+      path: components
+    components:
+      - mill
 
 wifi:
   ssid: !secret wifi_ssid
@@ -17,7 +23,7 @@ wifi:
   # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "${devicename} Fallback Hotspot"
-    password: "f3hQm4pXDUHu"
+    password: !secret fallback_wifi_pw
 
 captive_portal:
 
@@ -29,7 +35,7 @@ logger:
 api:
   password: !secret HA_API
   encryption:
-    key: "GwD+jJnETn7SeVGAIlWnjJRWTaqIJhfIMjdGwL8u3aI="
+    key: !secret Secret_KEY
 ota:
   - platform: esphome
     password: !secret HA_API
