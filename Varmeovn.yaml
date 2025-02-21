@@ -1,7 +1,8 @@
+#Remember to change the value for consupmtion (watt) on line 67 to the value of your heater. 
 substitutions:
   devicename: "navn"
   upper_devicename: "NAVN"
-
+  
 esphome:
   name: $devicename
   
@@ -42,12 +43,8 @@ ota:
 climate:
   - platform: mill
     name: ${devicename} Heater
-    id: "heater"
+    id: heater
     uart_id: uart_bus
-    visual:
-      min_temperature: 5 °C
-      max_temperature: 30 °C
-      temperature_step: 1 °C
 
 uart:
   id: uart_bus
