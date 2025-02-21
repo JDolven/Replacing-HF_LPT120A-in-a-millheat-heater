@@ -1,4 +1,9 @@
 #include "mill.h"
+#include "esphome/components/climate/climate.h"
+
+using namespace esphome::uart;
+using namespace esphome::climate;
+
 
 namespace esphome {
 namespace mill {
@@ -12,8 +17,8 @@ void MillClimate::loop() {
     if (newData) {
         newData = false;
         if (receivedChars[4] == 0xC9) {
-            if (receivedChars[6] != 0) this->target_temperature = receivedChars[6];
-            if (receivedChars[7] != 0) this->current_temperature = receivedChars[7];
+            if (receivedChars[6] != 0) this->target_temperature = (receivedChars[6]);
+            if (receivedChars[7] != 0) this->current_temperature = (receivedChars[7]);
             if (receivedChars[9] == 0x00) this->mode = climate::CLIMATE_MODE_OFF;
             else if (receivedChars[9] == 0x01) this->mode = climate::CLIMATE_MODE_HEAT;
             if (receivedChars[11] == 0x01) this->action = climate::CLIMATE_ACTION_HEATING;
@@ -37,18 +42,18 @@ climate::ClimateTraits MillClimate::traits() {
 void MillClimate::control(const climate::ClimateCall &call) {
     if (call.get_mode().has_value()) {
         switch (call.get_mode().value()) {
-          case climate::CLIMATE_MODE_OFF:
-            ESP_LOGD("mill", "Turning off heater");
-            sendCmd(settPower, 11, 0x00);
-            this->mode = climate::CLIMATE_MODE_OFF;
-            this->action = climate::CLIMATE_ACTION_OFF;
-            break;
-          case climate::CLIMATE_MODE_HEAT:
-            ESP_LOGD("mill", "Turning on heater");
-            sendCmd(settPower, 11, 0x01);
-            this->mode = climate::CLIMATE_MODE_HEAT;
-            break;
-          default: break;
+            case climate::CLIMATE_MODE_OFF:
+                ESP_LOGD("mill", "Turning off heater");
+                sendCmd(settPower, 11, 0x00);
+                this->mode = climate::CLIMATE_MODE_OFF;
+                this->action = climate::CLIMATE_ACTION_OFF;
+                break;
+            case climate::CLIMATE_MODE_HEAT:
+                ESP_LOGD("mill", "Turning on heater");
+                sendCmd(settPower, 11, 0x01);
+                this->mode = climate::CLIMATE_MODE_HEAT;
+                break;
+            default: break;
         }
         this->publish_state();
     }
@@ -59,20 +64,21 @@ void MillClimate::control(const climate::ClimateCall &call) {
         this->target_temperature = temp;
         this->publish_state();
     }
+}
 
 void MillClimate::recvWithStartEndMarkers() {
     static bool recv_in_progress = false;
-    static byte ndx = 0;
+    static uint8_t ndx = 0;
     char start_marker = 0x5A;
     char end_marker = 0x5B;
     char line_end = 0x0A;
     char rc;
 
-    if (this->uart_ && this->uart_->available() > 0) {
-        rc = this->uart_->read();
+    if (this->available() > 0) {
+        rc = static_cast<char>(this->read());
         if (recv_in_progress) {
             if ((rc != end_marker) && (rc != line_end)) {
-                receivedChars[ndx] = rc;
+                receivedChars[ndx] = (char) rc;
                 ndx++;
             } else {
                 recv_in_progress = false;
@@ -98,12 +104,10 @@ void MillClimate::sendCmd(char* arrayen, int len, int command) {
         arrayen[len] = static_cast<char>(0x00);
     }
     unsigned char crc = checksum(arrayen, len + 1);
-    if (this->uart_) {
-        this->uart_->write(static_cast<uint8_t>(0x5A));
-        for (int i = 0; i < len + 1; i++) this->uart_->write(static_cast<uint8_t>(arrayen[i]));
-        this->uart_->write(static_cast<uint8_t>(crc));
-        this->uart_->write(static_cast<uint8_t>(0x5B));
-    }
+    this->write(static_cast<uint8_t>(0x5A));
+    for (int i = 0; i < len + 1; i++) this->write(static_cast<uint8_t>(arrayen[i]));
+    this->write(static_cast<uint8_t>(crc));
+    this->write(static_cast<uint8_t>(0x5B));
 }
 
 }  // namespace mill
