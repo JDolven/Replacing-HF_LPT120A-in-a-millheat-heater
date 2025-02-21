@@ -8,27 +8,23 @@
 namespace esphome {
 namespace mill {
 
-class MillClimate : public Component, public climate::Climate {
+class MillClimate : public Component, public climate::Climate, public uart::UARTDevice {
 public:
-    void set_uart(uart::UARTComponent* uart) { this->uart_ = uart; }
+
     void setup() override;
     void loop() override;
-    climate::ClimateTraits traits() override;
     void control(const climate::ClimateCall &call) override;
-    climate::ClimateAction get_action() const override {
-        return this->action;
-    }
 
 protected:
-    uart::UARTComponent* uart_{nullptr};
-    bool newData = false;
+    climate::ClimateTraits traits() override;
+
+private:
     char receivedChars[15] = {0};
     char settPower[12] = {0x00, 0x10, 0x06, 0x00, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     char settTemp[12] = {0x00, 0x10, 22, 0x00, 0x46, 0x01, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00};
-    float target_temperature;
-    float current_temperature;
-    climate::ClimateMode mode;
-    climate::ClimateAction action;
+    bool newData = false;
+//    float target_temperature;
+//    float current_temperature;
 
     void recvWithStartEndMarkers();
     unsigned char checksum(char *buf, int len);
