@@ -4,22 +4,22 @@ from esphome.components import climate, uart, network
 
 DEPENDENCIES = ["uart", "climate", "network"]
 
-
 from esphome.components.climate import (
     ClimateMode,
     CONF_CURRENT_TEMPERATURE,
+    climate_schema,
 )
 
 mill_ns = cg.esphome_ns.namespace("mill")
 MillClimate = mill_ns.class_("MillClimate", uart.UARTDevice, climate.Climate, cg.Component)
 
 CONF_ID = "id"
-CONF_uart_id = "uart_id"
+CONF_UART_ID = "uart_id"
 
 CONFIG_SCHEMA = cv.All(
-    climate.CLIMATE_SCHEMA.extend(
+    climate_schema(MillClimate).extend(
         {
-        cv.GenerateID(): cv.declare_id(MillClimate),
+            cv.GenerateID(): cv.declare_id(MillClimate),
         }
     )
     .extend(uart.UART_DEVICE_SCHEMA)
