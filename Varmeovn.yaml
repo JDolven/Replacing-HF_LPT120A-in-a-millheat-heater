@@ -32,7 +32,6 @@ logger:
   baud_rate: 0
 # Enable Home Assistant API
 api:
-  password: !secret HA_API
   encryption:
     key: !secret Secret_KEY
 ota:
