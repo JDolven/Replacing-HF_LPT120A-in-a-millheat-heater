@@ -30,12 +30,23 @@ void MillClimate::loop() {
 
 climate::ClimateTraits MillClimate::traits() {
     auto traits = climate::ClimateTraits();
-    traits.set_supports_action(true);
-    traits.set_supports_current_temperature(true);
+
+    // Ny måte å sette features på (erstatter de to gamle set_supports_*)
+    traits.add_feature_flags(
+        climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE |
+        climate::CLIMATE_SUPPORTS_ACTION
+    );
+
+    // Modes (dette var allerede riktig)
+    traits.set_supported_modes({
+        climate::CLIMATE_MODE_OFF,
+        climate::CLIMATE_MODE_HEAT
+    });
+
     traits.set_visual_min_temperature(5);
     traits.set_visual_max_temperature(30);
-    traits.set_visual_temperature_step(1);
-    traits.set_supported_modes({climate::CLIMATE_MODE_OFF, climate::CLIMATE_MODE_HEAT});
+    traits.set_visual_temperature_step(1.0f);   // bedre med .0f
+
     return traits;
 }
 
