@@ -48,16 +48,16 @@ Bytes are numbered from `5A` = byte 0. Data starts at byte 6.
 
 | CMD | Data | Reply | Meaning |
 |---|---|---|---|
-| `41` | none | echo, `C9`, `CB` | Request status |
-| `43` | none | echo, `C9` | *Unknown*. Nothing visible changed with all-zero data. |
+| `41` | none | echo, `C9`, `CB` | Request status. Also seemed to wake the display backlight (seen once). |
+| `43` | `VV` | echo, `C9` | *Unknown*. Nothing visible changed with `00` or `01`. |
 | `44` | none | echo, `C9`, `CB` | *Unknown*. Behaves like `41`. |
 | `45` | none | echo, `C9`, `24` frame | *Unknown*. Triggers a short `24 A6 6A` frame (version/ID?). |
 | `46` | `01 00 TT` | echo, `C9` | Set target temperature to `TT` °C. Byte 6 (`01`) can also be `02` with the same effect. |
 | `47` | `PP` | echo, `C9` | Power: `01` = on (heat), `00` = off |
 | `48` | `RR` | echo, `C9` | Set the reported room temperature to `RR` °C. The heater keeps following its sensor afterwards, so this behaves like a calibration offset. **Sending `00` makes the heater think the room is 0 °C and start heating.** |
 | `50` | none | `50 00 TT RR PP ...` | Read target (`TT`), room (`RR`) and power (`PP`) |
-| `51` | none | echo | *Unknown* |
-| `52` | none | echo | *Unknown* |
+| `51` | `VV` | echo, `C9` | Display indicator: `01` shows "56" on the display, `00` clears it. `02`, `03`, `0A` and `38` showed nothing. Meaning *unknown*, possibly a Wi-Fi/cloud status code from the original module. |
+| `52` | `VV` | echo, `C9` | *Unknown*. Nothing visible changed with `00` or `01`. |
 
 All other values from `00` to `FF` gave no reply when sent with all-zero data.
 
@@ -79,8 +79,14 @@ Example, set the target to 12 °C:
 
 The settings ("gear") button on the panel did not produce a frame of its own.
 
+### Pairing mode
+
+After the Wi-Fi button is pressed (`08` frame), the Wi-Fi LED blinks for about 2 minutes. During that time
+the heater ignores all commands: no echo and no effect. It answers normally again once the LED turns off.
+
 ## Open questions
 
-- What `43`, `51` and `52` set. Try non-zero data while watching the display.
+- What `43` and `52` set, and what the "56" shown by `51 01` means.
+- What the original module answered to `08`, so that pairing mode ends sooner.
 - What the `08`, `24` and `CB` payloads mean, and what the original module replied.
 - Whether `48` is stored across power cycles.
