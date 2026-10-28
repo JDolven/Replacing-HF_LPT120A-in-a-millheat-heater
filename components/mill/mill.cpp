@@ -49,7 +49,6 @@ void MillClimate::dump_config() {
   if (this->link_timeout_ > 0) {
     ESP_LOGCONFIG(TAG, "  Link timeout: %" PRIu32 " ms", this->link_timeout_);
   }
-  this->check_uart_settings(9600);
 }
 
 void MillClimate::loop() {
