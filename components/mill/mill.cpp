@@ -5,6 +5,10 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+// ESPHome 2026.11 moved format_hex_pretty() to alloc_helpers.h; older versions get it from helpers.h.
+#if __has_include("esphome/core/alloc_helpers.h")
+#include "esphome/core/alloc_helpers.h"
+#endif
 
 namespace esphome {
 namespace mill {
