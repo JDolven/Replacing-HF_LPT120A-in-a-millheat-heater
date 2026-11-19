@@ -14,19 +14,19 @@ Anything marked *unknown* has been seen but not understood yet.
 ## Frame format
 
 ```
-5A | 00 | LEN | SEQ | 00 | CMD | data ... | SUM | 5B
+5A | LEN_HI | LEN | SEQ | 00 | CMD | data ... | SUM | 5B
 ```
 
 | Field | Description |
 |---|---|
 | `5A` | Start marker |
-| `00` | Always 0 |
+| `LEN_HI` | High byte of the length. Always 0 in practice; the original module reads `LEN_HI LEN` as one 16-bit length and rejects anything above 600. |
 | `LEN` | Total frame length in bytes, from `5A` to `5B` inclusive |
 | `SEQ` | Ignored by the heater as far as tested (`00`, `06`, `16` and `22` all work). The heater always sends `00`, except in the Wi-Fi button frame (`01`). |
 | `00` | Always 0 |
 | `CMD` | Command / message type |
 | data | `LEN - 8` bytes |
-| `SUM` | Sum of all bytes between `5A` and `SUM`, truncated to 8 bits |
+| `SUM` | Sum of all bytes between `5A` and `SUM`, truncated to 8 bits. The original module drops frames with a wrong sum. |
 | `5B` | End marker |
 
 There is no escaping. `5A`, `5B` and `0A` can appear inside data and checksum, so a receiver must frame on
@@ -84,9 +84,56 @@ The settings ("gear") button on the panel did not produce a frame of its own.
 After the Wi-Fi button is pressed (`08` frame), the Wi-Fi LED blinks for about 2 minutes. During that time
 the heater ignores all commands: no echo and no effect. It answers normally again once the LED turns off.
 
+## Wi-Fi icon: ESP → heater
+
+The original module drives the Wi-Fi icon with short 10-byte frames, always with `SEQ` = `01`. The codes and
+data bytes are in the module firmware (issue #12), and the icon colours were captured independently in
+issue #10. The component sends these when `wifi_icon: true` is set.
+
+| Frame | Icon | Original meaning |
+|---|---|---|
+| `5A 00 0A 01 00 02 F0 0F 0C 5B` | green, blinking | Wi-Fi connected |
+| `5A 00 0A 01 00 03 F1 1F 1E 5B` | off | Wi-Fi disconnected |
+| `5A 00 0A 01 00 04 F2 2F 30 5B` | green | cloud connected |
+| `5A 00 0A 01 00 05 F3 3F 42 5B` | red | cloud disconnected |
+
+Issue #10 reports that the buttons behave differently once the icon is driven, as if a "perceived
+temperature" calibration starts. This is not understood yet, which is why the option is off by default.
+
+## What the original module firmware shows
+
+A flash dump of the original HF-LPT120A (issue #12, firmware "Mill Device G2" from December 2021, built on
+the AbleCloud SDK) contains the module's side of this protocol. The module is mostly a pipe: every frame
+from the heater is forwarded to the cloud, and every command from the Mill app is sent to the heater
+unchanged. So the commands `41`–`52` and the messages `C9`–`CB` are defined by the heater and the app, and the
+module firmware says nothing about what their data means.
+
+The module handles these codes from the heater itself instead of forwarding them:
+
+| CMD | Data | Notes |
+|---|---|---|
+| `00` | | *Unknown* |
+| `07` | 124 or 125 bytes (`LEN` `84`/`85`) | Probably the heater's registration with the cloud: device ID, type and key. The 133-byte `settInit` frame in issue #10 is this. |
+| `08` | `D8 8D` | Wi-Fi button (measured above). The module replies with a code `08` frame. |
+| `09` | `E9 9E` | *Unknown*, probably another button combination. The module replies with code `09`. |
+| `0A` | `FA AF` | *Unknown*. The module replies with code `0A`. |
+| `0B` | `B7 7B` | *Unknown*. The module replies with code `0B`. |
+| `0C` | text | Module name or ID (the handler uses the string `Mill Device G2`). |
+| `0D`, `0E` | | *Unknown* |
+| `24` | `A6 6A` | Seen after command `45` (measured above). The module replies with code `24`. |
+
+Whether those replies go back to the heater or to the cloud has not been traced yet.
+
 ## Open questions
 
 - What `43` and `52` set, and what the "56" shown by `51 01` means.
-- What the original module answered to `08`, so that pairing mode ends sooner.
+- What the original module answered to `08`, so that pairing mode ends sooner. The firmware builds a code `08`
+  reply; its bytes and destination still need to be traced.
 - What the `08`, `24` and `CB` payloads mean, and what the original module replied.
 - Whether `48` is stored across power cycles.
+
+## Sources
+
+- Measurements on a Mill panel heater gen2, October 2026 (most of this document).
+- The HF-LPT120A firmware dump in issue #12 (frame parser, Wi-Fi icon, codes handled by the module).
+- Wi-Fi icon and registration captures in issue #10.

@@ -1,6 +1,8 @@
 #include "mill.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
@@ -10,12 +12,20 @@
 #include "esphome/core/alloc_helpers.h"
 #endif
 
+#ifdef USE_WIFI
+#include "esphome/components/wifi/wifi_component.h"
+#endif
+#ifdef USE_API
+#include "esphome/components/api/api_server.h"
+#endif
+
 namespace esphome {
 namespace mill {
 
 static const char *const TAG = "mill";
 
 void MillClimate::setup() {
+  this->last_valid_rx_ms_ = millis();
   // Be om status med en gang i stedet for å vente på neste periodiske C9 (~60 s)
   this->queue_command_(CMD_REQUEST_STATUS, {});
 }
@@ -23,10 +33,19 @@ void MillClimate::setup() {
 void MillClimate::loop() {
   this->read_uart_();
   this->process_queue_();
+  // Etter read_uart_(), ellers kan last_valid_rx_ms_/last_rx_byte_ms_ være nyere enn now
+  const uint32_t now = millis();
+  if (this->wifi_icon_)
+    this->update_wifi_icon_(now);
+  this->check_link_(now);
 }
 
 void MillClimate::dump_config() {
   LOG_CLIMATE("", "Mill Heater", this);
+  ESP_LOGCONFIG(TAG, "  WiFi icon: %s", YESNO(this->wifi_icon_));
+  ESP_LOGCONFIG(TAG, "  Sniffer: %s", YESNO(this->sniffer_));
+  if (this->link_timeout_ > 0)
+    ESP_LOGCONFIG(TAG, "  Link timeout: %u s", static_cast<unsigned>(this->link_timeout_ / 1000));
 }
 
 climate::ClimateTraits MillClimate::traits() {
@@ -120,7 +139,14 @@ void MillClimate::handle_frame_(const uint8_t *frame, size_t length) {
   }
 
   const uint8_t command = frame[5];
-  ESP_LOGV(TAG, "RX %s", format_hex_pretty(frame, length).c_str());
+  this->log_frame_("RX", frame, length);
+
+  this->last_valid_rx_ms_ = millis();
+  if (!this->link_ok_) {
+    ESP_LOGI(TAG, "Heater is responding again");
+    this->link_ok_ = true;
+    this->status_clear_warning();
+  }
 
   // Ovnen kvitterer en kommando ved å sende en ramme med samme kommandobyte tilbake
   if (this->awaiting_ack_ && !this->tx_queue_.empty() && command == this->tx_queue_.front()[5]) {
@@ -143,6 +169,12 @@ void MillClimate::handle_frame_(const uint8_t *frame, size_t length) {
       break;
     case MSG_PERIODIC:
       break;
+    case ICON_GREEN_BLINK:
+    case ICON_OFF:
+    case ICON_GREEN:
+    case ICON_RED:
+      // Ekko av en WiFi-ikon-ramme vi sendte selv
+      break;
     default:
       ESP_LOGD(TAG, "Unhandled frame 0x%02X: %s", command, format_hex_pretty(frame, length).c_str());
       break;
@@ -154,6 +186,8 @@ void MillClimate::handle_status_(const uint8_t *frame, size_t length) {
     ESP_LOGW(TAG, "Ignoring status frame with length %u", static_cast<unsigned>(length));
     return;
   }
+  if (this->sniffer_)
+    this->log_status_diff_(frame, length);
   const uint8_t target = frame[7];
   const uint8_t room = frame[8];
   const uint8_t power = frame[10];
@@ -231,15 +265,89 @@ void MillClimate::process_queue_() {
   }
 
   // Ikke send midt i en innkommende ramme; det var slik kommandoer gikk tapt før
-  if (this->rx_length_ > 0 || now - this->last_rx_byte_ms_ < TX_IDLE_MS)
+  if (!this->line_idle_(now))
     return;
 
   const auto &frame = this->tx_queue_.front();
-  ESP_LOGV(TAG, "TX %s", format_hex_pretty(frame.data(), frame.size()).c_str());
+  this->log_frame_("TX", frame.data(), frame.size());
   this->write_array(frame.data(), frame.size());
   this->awaiting_ack_ = true;
   this->sent_at_ms_ = now;
   this->attempts_++;
+}
+
+bool MillClimate::line_idle_(uint32_t now) const {
+  return this->rx_length_ == 0 && now - this->last_rx_byte_ms_ >= TX_IDLE_MS;
+}
+
+void MillClimate::update_wifi_icon_(uint32_t now) {
+  uint8_t icon = ICON_OFF;
+#ifdef USE_WIFI
+  if (wifi::global_wifi_component != nullptr && wifi::global_wifi_component->is_connected())
+    icon = ICON_GREEN_BLINK;
+#endif
+#ifdef USE_API
+  if (icon != ICON_OFF && api::global_api_server != nullptr) {
+    if (api::global_api_server->is_connected()) {
+      icon = ICON_GREEN;
+      this->ha_was_connected_ = true;
+    } else if (this->ha_was_connected_) {
+      icon = ICON_RED;
+    }
+  }
+#endif
+  if (icon == this->icon_sent_ && now - this->icon_sent_ms_ < ICON_REFRESH_MS)
+    return;
+  // Ikke bland ikonet inn i en kommando som venter på kvittering, og ikke send midt i en innkommende ramme
+  if (this->awaiting_ack_ || !this->tx_queue_.empty() || !this->line_idle_(now))
+    return;
+
+  // X Y er F0 0F, F1 1F, F2 2F, F3 3F for kode 02..05; SEQ er alltid 01 i disse rammene
+  const uint8_t n = icon - ICON_GREEN_BLINK;
+  std::array<uint8_t, ICON_FRAME_LENGTH> frame{
+      START_MARKER, 0x00, ICON_FRAME_LENGTH, 0x01, 0x00, icon, static_cast<uint8_t>(0xF0 + n),
+      static_cast<uint8_t>((n << 4) | 0x0F), 0x00, END_MARKER};
+  frame[ICON_FRAME_LENGTH - 2] = checksum_(frame.data() + 1, ICON_FRAME_LENGTH - 3);
+  ESP_LOGD(TAG, "WiFi icon 0x%02X", icon);
+  this->log_frame_("TX", frame.data(), frame.size());
+  this->write_array(frame.data(), frame.size());
+  this->icon_sent_ = icon;
+  this->icon_sent_ms_ = now;
+}
+
+void MillClimate::check_link_(uint32_t now) {
+  if (this->link_timeout_ == 0 || !this->link_ok_ || now - this->last_valid_rx_ms_ <= this->link_timeout_)
+    return;
+  ESP_LOGW(TAG, "No valid frame from the heater for %u s", static_cast<unsigned>((now - this->last_valid_rx_ms_) / 1000));
+  this->link_ok_ = false;
+  this->status_set_warning("No data from heater");
+}
+
+void MillClimate::log_frame_(const char *direction, const uint8_t *frame, size_t length) {
+  if (this->sniffer_) {
+    ESP_LOGI(TAG, "%s %s", direction, format_hex_pretty(frame, length).c_str());
+  } else {
+    ESP_LOGV(TAG, "%s %s", direction, format_hex_pretty(frame, length).c_str());
+  }
+}
+
+// Viser hvilke bytes i C9 som endret seg siden forrige status (byte 0 er 5A)
+void MillClimate::log_status_diff_(const uint8_t *frame, size_t length) {
+  if (this->have_last_status_) {
+    char diff[STATUS_FRAME_LENGTH * 14 + 1];
+    size_t pos = 0;
+    // Hopp over sjekksummen, den endrer seg med alt annet
+    for (size_t i = 0; i < length - 2; i++) {
+      if (frame[i] == this->last_status_[i])
+        continue;
+      pos += snprintf(diff + pos, sizeof(diff) - pos, " b%u %02X->%02X", static_cast<unsigned>(i),
+                      this->last_status_[i], frame[i]);
+    }
+    if (pos > 0)
+      ESP_LOGI(TAG, "Status changed:%s", diff);
+  }
+  std::copy(frame, frame + length, this->last_status_.begin());
+  this->have_last_status_ = true;
 }
 
 uint8_t MillClimate::checksum_(const uint8_t *data, size_t length) {
